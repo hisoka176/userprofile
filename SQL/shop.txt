@@ -1,4 +1,0 @@
-/* 玩家购买物品倾向  */
-select roleid,goosid,itemid from tlbb3d_server_original_par.server_shop
-where selfitemnum=0
-left join 
