@@ -1,2 +1,4 @@
 eclipse.preferences.version=1
-encoding//src/__init__.py=utf-8
+encoding//constant/varible.py=utf-8
+encoding//sql/__init__.py=utf-8
+encoding//test/sql_test.py=utf-8
