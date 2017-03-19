@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="GB2312"?>
+<root>
+    <stat desc="RFM妯″瀷锛岀敓鎴愮敤鎴风殑浠峰€兼ā鍨?>
+	
+		<desc>
+			鎸夌収姣忓ぉ娌夋穩鏂板垱寤虹殑瑙掕壊锛屼娇鐢╠eviceid+userid+roleid浣滀负涓婚敭銆?
+			sdate榛樿鏄ㄥぉ,edate榛樿浠婂ぉ
+		</desc>
+		<require>
+			mbiserver.server_billing
+			mbiserver.server_rolebuild
+		</require>
+		
+		<result>
+			userprofile.result_user_value
+		</result>
+		
+		<changehistory>
+			2017-03-13	鏉庢枌	鍒濆鐗堟湰
+		</changehistory>
+        
+        <getDate desc="edate">
+            <output-param>edate</output-param>
+        </getDate>
+        <getDate desc="sdate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-1</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+		<getDate desc="ldate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-30</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+	    
+		 
+        <hive-ssql desc="浠巑biserver涓殑server_rolebuild鍚屾鍒皍serprofile鐨刣im_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+			<input-param>ldate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						insert overwrite table userprofile.dim_rolebuild_dt0 partition(gt=appkey,dt='?')
+						select tempa.appkey,tempb.userid,tempc.roleid,accumulative_money,register_date,recharge_interval,recent_recharge_dt
+						from 
+						(
+							select appkey,userid,roleid,sum(goods_price) as accumulative_money
+							from 
+							mbiserver.server_billing
+							group by appkey,userid,roleid
+						) tempa
+						left join
+						(
+							select appkey,userid,roleid,register_date
+							from 
+							(
+								select appkey,userid,roleid,first_value(servertime) over(partition by appkey,userid,roleid order by servertime asc) as register_date
+								from 
+								mbiserver.server_rolebuild
+							) a
+							group by appkey,userid,roleid,register_date							
+						) tempb
+						on(tempa.appkey=tempb.appkey and tempa.userid = tempb.userid and tempa.roleid=tempb.roleid)
+						left join
+						(
+							select appkey,userid,roleid,sum(date_interval)/count(date_interval) as recharge_interval
+							from 
+							(
+								select appkey,userid,roleid,datediff(if(edate is null,cast(to_date(now()) as string),edate),sdate) as date_interval
+								from 
+								(
+									select appkey,userid,roleid,dt as sdate,
+										lead(dt,1) over (partition by appkey,userid,roleid order by dt asc) as edate
+									from  
+									mbiserver.server_billing
+									where dt >= '?' and  dt < '?'
+								) a
+							) b 
+							group by appkey,userid,roleid
+						) tempc
+						on(tempa.appkey=tempc.appkey and tempa.userid = tempc.userid and tempa.roleid=tempc.roleid)
+						left join
+						(
+							select appkey,userid,roleid,recent_recharge_dt
+							from 
+							(
+								select appkey,userid,roleid,
+									first_value(dt) over (partition by appkey,userid,roleid order by dt desc) as recent_recharge_dt
+								from 
+								mbiserver.server_billing
+							) a 
+							group by appkey,userid,roleid,recent_recharge_dt
+							
+						) tempd
+						on(tempa.appkey=tempd.appkey and tempd.userid = tempd.userid and tempa.roleid=tempd.roleid) 							
+
+                   ]]>
+            </sql>
+        </hive-ssql> 
+	 
+		
+
+		<hive-ssql desc="鐢熸垚dim_rolebuild_dt0缁熻淇℃伅">
+            <datasource>impala_stat</datasource>
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>
+            <is-single-result>false</is-single-result>
+            <sql>
+                <![CDATA[
+                        compute incremental stats userprofile.result_user_value partition (dt='?') ;
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+	 
+        
+    </stat>
+</root>
+        

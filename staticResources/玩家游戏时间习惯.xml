@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="GB2312"?>
+<root>
+    <stat desc="玩家游戏时间习惯">
+	
+		<desc>
+			按照每天沉淀新创建的角色，使用deviceid+userid+roleid作为主键。
+			sdate默认昨天,edate默认今天
+		</desc>
+		<require>
+			userprofile.dim_rolebuild_dt0
+			mbisever.server_rolebuild
+		</require>
+		
+		<result>
+			userprofile.dim_rolebuild_dt0
+		</result>
+		
+		<changehistory>
+			2016-11-21	李斌	初始版本
+		</changehistory>
+        
+        <getDate desc="edate">
+            <output-param>edate</output-param>
+        </getDate>
+        <getDate desc="sdate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-1</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+	    
+		 
+        <hive-ssql desc="从mbiserver中的server_rolebuild同步到userprofile的dim_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						insert overwrite table userprofile.result_play_time_dt0 partition(dt='?')
+						select game_id,userid,roleid,dw,
+						concat_ws(
+							sum(t1) as t1,
+							sum(t2) as t2,
+							sum(t3) as t3,
+							sum(t4) as t4,
+							sum(t5) as t5,
+							sum(t6) as t6,
+							sum(t7) as t7,
+							sum(t8) as t8,
+							sum(t9) as t9,
+							sum(t10) as t10,
+							sum(t11) as t11,
+							sum(t12) as t12,
+							sum(t13) as t13,
+							sum(t14) as t14,
+							sum(t15) as t15,
+							sum(t16) as t16,
+							sum(t17) as t17,
+							sum(t18) as t18,
+							sum(t19) as t19,
+							sum(t20) as t20,
+							sum(t21) as t21,
+							sum(t22) as t22,
+							sum(t23) as t23,
+							sum(t24) as t24,
+							':'),
+						concat_ws(
+							sum(o1) as o1,
+							sum(o2) as o2,
+							sum(o3) as o3,
+							sum(o4) as o4,
+							sum(o5) as o5,
+							sum(o6) as o6,
+							sum(o7) as o7,
+							sum(o8) as o8,
+							sum(o9) as o9,
+							sum(o10) as o10,
+							sum(o11) as o11,
+							sum(o12) as o12,
+							sum(o13) as o13,
+							sum(o14) as o14,
+							sum(o15) as o15,
+							sum(o16) as o16,
+							sum(o17) as o17,
+							sum(o18) as o18,
+							sum(o19) as o19,
+							sum(o20) as o20,
+							sum(o21) as o21,
+							sum(o22) as o22,
+							sum(o23) as o23,
+							sum(o24) as o24,
+							':')
+					from 
+					(
+						select  
+							game_id,userid,roleid,dayofweek(dt) as dw,
+							split_part(count24,'|',1) as t1,
+							split_part(count24,'|',2) as t2,
+							split_part(count24,'|',3) as t3,
+							split_part(count24,'|',4) as t4,
+							split_part(count24,'|',5) as t5,
+							split_part(count24,'|',6) as t6,
+							split_part(count24,'|',7) as t7,
+							split_part(count24,'|',8) as t8,
+							split_part(count24,'|',9) as t9,
+							split_part(count24,'|',10) as t10,
+							split_part(count24,'|',11) as t11,
+							split_part(count24,'|',12) as t12,
+							split_part(count24,'|',13) as t13,
+							split_part(count24,'|',14) as t14,
+							split_part(count24,'|',15) as t15,
+							split_part(count24,'|',16) as t16,
+							split_part(count24,'|',17) as t17,
+							split_part(count24,'|',18) as t18,
+							split_part(count24,'|',19) as t19,
+							split_part(count24,'|',20) as t20,
+							split_part(count24,'|',21) as t21,
+							split_part(count24,'|',22) as t22,
+							split_part(count24,'|',23) as t23,
+							split_part(count24,'|',24) as t24,
+							split_part(onlinetimes24,'|',1) as o1,
+							split_part(onlinetimes24,'|',2) as o2,
+							split_part(onlinetimes24,'|',3) as o3,
+							split_part(onlinetimes24,'|',4) as o4,
+							split_part(onlinetimes24,'|',5) as o5,
+							split_part(onlinetimes24,'|',6) as o6,
+							split_part(onlinetimes24,'|',7) as o7,
+							split_part(onlinetimes24,'|',8) as o8,
+							split_part(onlinetimes24,'|',9) as o9,
+							split_part(onlinetimes24,'|',10) as o10,
+							split_part(onlinetimes24,'|',11) as o11,
+							split_part(onlinetimes24,'|',12) as o12,
+							split_part(onlinetimes24,'|',13) as o13,
+							split_part(onlinetimes24,'|',14) as o14,
+							split_part(onlinetimes24,'|',15) as o15,
+							split_part(onlinetimes24,'|',16) as o16,
+							split_part(onlinetimes24,'|',17) as o17,
+							split_part(onlinetimes24,'|',18) as o18,
+							split_part(onlinetimes24,'|',19) as o19,
+							split_part(onlinetimes24,'|',20) as o20,
+							split_part(onlinetimes24,'|',21) as o21,
+							split_part(onlinetimes24,'|',22) as o22,
+							split_part(onlinetimes24,'|',23) as o23,
+							split_part(onlinetimes24,'|',24) as o24
+						from 
+						userprofile.mid_login_dt1
+						where  dt>='?' and dt<date_sub('?',28)
+					) a 
+					group by game_id,userid,roleid,dw
+                   ]]>
+            </sql>
+        </hive-ssql> 
+	 
+		
+
+		<hive-ssql desc="生成dim_rolebuild_dt0统计信息">
+            <datasource>impala_stat</datasource>
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>
+            <is-single-result>false</is-single-result>
+            <sql>
+                <![CDATA[
+                        compute incremental stats userprofile.result_play_time_dt0 partition (dt='?') ;
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+	 
+        
+    </stat>
+</root>
+        

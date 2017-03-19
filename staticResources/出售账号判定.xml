@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="GB2312"?>
+<root>
+    <stat desc="从mbiserver中的server_rolebuild同步到用户画像库userprofile的dim_rolebuild_dt0">
+	
+		<desc>
+			按照每天沉淀新创建的角色，使用deviceid+userid+roleid作为主键。
+			sdate默认昨天,edate默认今天
+		</desc>
+		<require>
+			userprofile.dim_rolebuild_dt0
+			mbisever.server_rolebuild
+		</require>
+		
+		<result>
+			userprofile.dim_rolebuild_dt0
+		</result>
+		
+		<changehistory>
+			2016-11-21	李斌	初始版本
+		</changehistory>
+        
+        <getDate desc="edate">
+            <output-param>edate</output-param>
+        </getDate>
+        <getDate desc="sdate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-1</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+	    
+		 
+        <hive-ssql desc="从mbiserver中的server_rolebuild同步到userprofile的dim_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						insert overwrite table userprofile.result_user_sold_account_dt0 partition(dt='?')
+						select  game_id,userid,roleid,city,from_unixtime(min(unix_timestamp(sdate)),'yyyy-MM-dd'),from_unixtime(max(unix_timestamp(edate)),'yyyy-MM-dd'),sum(login_cnt)
+						from 
+						(
+							select game_id,userid,roleid,city,sdate,edate,login_cnt 
+							from 
+							userprofile.result_user_sold_account_dt0
+							union all
+							(
+								select game_id,userid,roleid,city,min(sdate) as sdate,min(edate) as sdate,1 as login_cnt
+								from
+								(
+									select game_id,userid,roleid,udfs.ip2locationpro(ip,1) as city,dt as sdate,dt as edate
+									from 
+									userprofile.mid_login_dt1
+									where dt='?'
+								) a 
+								group by game_id,userid,roleid,city
+							) b
+						) tempa
+						group by game_id,userid,roleid,city
+                   ]]>
+            </sql>
+        </hive-ssql> 
+	 
+		
+
+		<hive-ssql desc="生成dim_rolebuild_dt0统计信息">
+            <datasource>impala_stat</datasource>
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>
+            <is-single-result>false</is-single-result>
+            <sql>
+                <![CDATA[
+                        compute incremental stats userprofile.result_user_sold_account_dt0 partition (dt='?') ;
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+	 
+        
+    </stat>
+</root>
+        

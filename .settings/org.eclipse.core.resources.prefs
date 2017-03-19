@@ -1,4 +1,8 @@
 eclipse.preferences.version=1
-encoding//src/constant/varible.py=utf-8
-encoding//src/sql/__init__.py=utf-8
-encoding//src/test/sql_test.py=utf-8
+encoding//com/changyou/bi/main/rfm.py=utf-8
+encoding//com/changyou/bi/src/baseinformation.py=utf-8
+encoding//com/changyou/bi/src/imbalancesample.py=utf-8
+encoding//com/changyou/bi/src/preprocess.py=utf-8
+encoding//com/changyou/bi/src/spider.py=utf-8
+encoding//com/changyou/bi/src/user_value.py=utf-8
+encoding//com/changyou/bi/src/varible.py=utf-8

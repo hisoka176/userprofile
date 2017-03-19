@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="GB2312"?>
+<root>
+    <stat desc="�序�?>
+	
+		<desc>
+			按照每天沉淀新创建的角色，使用deviceid+userid+roleid作为主键�?
+			sdate默认昨天,edate默认今天
+		</desc>
+		<require>
+			userprofile.mid_login_dt1
+		</require>
+		
+		<result>
+			userprofile.
+		</result>
+		
+		<changehistory>
+			2017-03-13	李斌	初始版本
+		</changehistory>
+        
+        <getDate desc="edate">
+            <output-param>edate</output-param>
+        </getDate>
+        <getDate desc="sdate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-1</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+		<getDate desc="ldate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-30</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+	    
+		 
+        <hive-ssql desc="从mbiserver中的server_rolebuild同步到userprofile的dim_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+			<input-param>ldate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						insert overwrite table userprofile.result_role_online_time_sequence_dt0 partition(game_id,userid)
+						select game_id,userid,roleid,group_concat(date_sequence) as date_sequence 
+						from
+						(
+							select game_id,userid,roleid,group_concat(date_sequence) as date_sequence
+							from 
+							(
+								select game_id,userid,roleid,
+									concat('(',udfs.ip2locationpro(ip,1),
+									cast(first_login_time as string),
+									cast(today_times as string),
+									cast(sum_time as string),')') as date_sequence
+								from userprofile.mid_login_dt1
+								where dt='?'
+							) a
+							union join
+							(
+								select game_id,userid,roleid,date_sequence
+								from 
+								userprofile.result_role_online_time_sequence_dt0
+							) b
+						) group by game_id,userid,roleid
+						
+						
+						
+						
+						
+
+                   ]]>
+            </sql>
+        </hive-ssql> 
+	 
+		
+
+		<hive-ssql desc="生成dim_rolebuild_dt0统计信息">
+            <datasource>impala_stat</datasource>
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>
+            <is-single-result>false</is-single-result>
+            <sql>
+                <![CDATA[
+                        compute incremental stats userprofile.result_role_online_time_sequence_dt0 partition (dt='?') ;
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+	 
+        
+    </stat>
+</root>
+        

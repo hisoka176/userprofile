@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="GB2312"?>
+<root>
+    <stat desc="鐜╁鐨勫厖鍊煎簭鍒?>
+	
+		<desc>
+			鎸夌収姣忓ぉ娌夋穩鏂板垱寤虹殑瑙掕壊锛屼娇鐢╠eviceid+userid+roleid浣滀负涓婚敭銆?
+			sdate榛樿鏄ㄥぉ,edate榛樿浠婂ぉ
+		</desc>
+		<require>
+			userprofile.server_billing
+			userprofile.server_newuser_login_thh
+		</require>
+		
+		<result>
+			userprofile.result_role_recharge_by_other_dt0
+		</result>
+		
+		<changehistory>
+			2017-03-13	鏉庢枌	鍒濆鐗堟湰
+		</changehistory>
+        
+        <getDate desc="edate">
+            <output-param>edate</output-param>
+        </getDate>
+        <getDate desc="sdate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-1</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+		<getDate desc="ldate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-30</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+	    
+		 
+        <hive-ssql desc="浠巑biserver涓殑server_rolebuild鍚屾鍒皍serprofile鐨刣im_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+			<input-param>ldate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						create view result_role_consume_prefer_dt0_view as 
+						select gameid,userid,roleid,rankv,goods_price
+						from 
+						(
+							select gameid,userid,roleid,typev,rand() over(partition by gameid,userid,roleid,typev order by goods_price)as rankv,goods_price
+							from 
+							(
+								select gameid,userid,roleid,if(publish_data is null,'no active','active') as typev,goods_price
+								from 
+								(
+									select gameid,userid,roleid,publish_data,goods_price
+									(
+										select gameid,userid,roleid,publish_data,goods_price
+										(
+											select dt,gameid,userid,roleid,goods_price 
+											from 
+											userporfile.mid_recharge_dt0
+										) a
+										left join 
+										( 
+											select sdate,edate,publish_data
+											from 
+											analyst_pub.lb_tlbb3d_active_history
+										) b
+										on (a.dt >=b.sdate and a.dt <=b.edate )
+									) total
+									group by gameid,userid,roleid,publish_data,
+								) temp1
+							) temp2
+						) temp3	
+
+                   ]]>
+            </sql>
+        </hive-ssql> 
+		
+		<hive-ssql desc="浠巑biserver涓殑server_rolebuild鍚屾鍒皍serprofile鐨刣im_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+			<input-param>ldate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						insert overwrite userprofile.result_role_consume_prefer_dt0_view
+						select gameid,userid,roleid,typev,max(q1) - max(q3) as quarter_interval,max(q2) as quarter_midian,max(maxv) as maxv,min(minv) as minv
+						from 
+						(
+							select gameid,userid,roleid,typev,
+								if(quartertype=1,goods_price,0) as q1,
+								if(quartertype=2,goods_price,0) as q2,
+								if(quartertype=3,goods_price,0) as q3,
+								if(quartertype=10,goods_price,0) as maxv,
+								if(quartertype=1,goods_price,0) as minv
+							from 
+							(
+								select gameid,userid,roleid,
+									case 
+									when rankv = ceil(cnt/2) then 2
+									when rankv = ceil(cnt*3/4) then 3
+									when rankv = ceil(cnt/4) then 1
+									when rankv = cnt then 10
+									when rankv = 1 then 9
+									else
+									0
+									end as quartertype,
+									typev,
+									goods_price
+								
+								from
+								(
+									select a.gameid,a.userid,a.roleid,typev,cnt,ranv,goods_price 
+									from 
+									(
+										select gameid,userid,roleid,typev,max(rankv) as cnt
+										from 
+										result_role_consume_prefer_dt0_view
+										group by gameid,userid,roleid,typev
+									) a 
+									join 
+									(
+										select gameid,userid,roleid,rankv,goods_price
+										from 
+										result_role_consume_prefer_dt0_view
+									) b 
+									on(a.gameid=b.gameid and a.userid=b.userid and a.roleid=b.roleid and a.typev=b.typev)
+								) temp1
+								where quartertype!=0
+							) temp2
+						) temp3
+						group by gameid,userid,roleid,typev
+
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+		
+				<hive-ssql desc="浠巑biserver涓殑server_rolebuild鍚屾鍒皍serprofile鐨刣im_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+			<input-param>ldate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						drop view result_role_consume_prefer_dt0_view
+
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+
+		<hive-ssql desc="鐢熸垚dim_rolebuild_dt0缁熻淇℃伅">
+            <datasource>impala_stat</datasource>
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>
+            <is-single-result>false</is-single-result>
+            <sql>
+                <![CDATA[
+                        compute incremental stats userprofile.result_role_recharge_by_other_dt0 partition (dt='?') ;
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+	 
+        
+    </stat>
+</root>
+        

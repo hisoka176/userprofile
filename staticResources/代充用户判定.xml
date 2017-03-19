@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="GB2312"?>
+<root>
+    <stat desc="RFM模型，生成用户的价值模型">
+	
+		<desc>
+			按照每天沉淀新创建的角色，使用deviceid+userid+roleid作为主键。
+			sdate默认昨天,edate默认今天
+		</desc>
+		<require>
+			mbiserver.server_billing
+			mbiserver.server_rolebuild
+		</require>
+		
+		<result>
+			userprofile.result_user_value
+		</result>
+		
+		<changehistory>
+			2017-03-13	李斌	初始版本
+		</changehistory>
+        
+        <getDate desc="edate">
+            <output-param>edate</output-param>
+        </getDate>
+        <getDate desc="sdate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-1</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+		<getDate desc="ldate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-30</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+	    
+		 
+        <hive-ssql desc="从mbiserver中的server_rolebuild同步到userprofile的dim_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+			<input-param>ldate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						insert overwrite table userprofile.result_role_recharge_by_other_dt0 partition(gt=appkey,dt='?')
+						select appkey,userid,roleid,sum(time_cnt),deviceid,sum(deviceid_cnt),sum(total_cnt)
+						from 
+						(
+							select appkey,userid,roleid,time_cnt,deviceid,deviceid_cnt,total_cnt
+							from 
+							userprofile.result_role_recharge_by_other_dt0 ta
+							union join 
+							(
+								select tempa.appkey,tempa.userid,tempa.roleid,time_cnt,deviceid,deviceid_cnt,total_cnt
+								(
+									select appkey,userid,roleid,count(time_interval) as time_cnt
+									from
+									(
+										select appkey,userid,roleid,ctime,stime,etime,time_interval
+										from 
+										(	
+											select appkey,userid,roleid,ctime,stime,etime,
+												ctime between stime and etime as mark1,ctime between stime and minutes_add(stime,5) as mark2,ctime between minutes_sub(etime,5) and etime as mark3,
+												ceil((unix_timestamp(etime) - unix_timestamp(stime))/60) as time_interval
+											from 
+											(
+												select appkey,userid,roleid,create_date as ctime,seconds_sub(servertime,onlinetimes) as stime,servertime as etime
+												from 
+												(
+													select tempa.appkey,tempa.userid,tempa.roleid,create_date,servertime,onlinetimes from
+													(
+														select appkey,userid,roleid,create_date
+														from mbiserver.server_billing
+														where dt='2015-01-01'
+													) tempa
+													left join
+													(
+														select appkey,userid,roleid,servertime,onlinetimes
+														from
+														mbiserver.server_logout
+														where dt='2015-01-01'
+													) tempb
+													on(tempa.appkey=tempb.appkey and tempa.userid=tempb.userid and tempa.roleid=tempb.roleid)
+												) a
+											) b
+										) c
+										where mark1 and (mark2 or mark3) and time_interval <8
+									) d 
+									group by appkey,userid,roleid
+								) tempa
+								join 
+								(
+									select from 
+									(
+										select appkey,userid,roleid,deviceid,count(deviceid) 
+										from
+										mbiserver.server_billing	
+										where dt='?'
+									) tempa
+									left join
+									(
+										select deviceid,count(*) as total_cnt
+										from 
+										mbiserver.server_billing
+										where dt='?'
+										group by deviceid
+									) tempb
+									on (tempa.deviceid=tempb.deviceid)
+								) tempb
+								on(tempa.appkey=tempb.appkey and tempa.userid=tempb.userid and tempa.roleid=tempb.roleid)
+							) tb
+						) total
+						group by appkey,userid,roleid,deviceid
+						
+
+                   ]]>
+            </sql>
+        </hive-ssql> 
+	 
+		
+
+		<hive-ssql desc="生成dim_rolebuild_dt0统计信息">
+            <datasource>impala_stat</datasource>
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>
+            <is-single-result>false</is-single-result>
+            <sql>
+                <![CDATA[
+                        compute incremental stats userprofile.result_user_value partition (dt='?') ;
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+	 
+        
+    </stat>
+</root>
+        

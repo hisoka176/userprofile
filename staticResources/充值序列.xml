@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="GB2312"?>
+<root>
+    <stat desc="鐜╁鐨勫厖鍊煎簭鍒?>
+	
+		<desc>
+			获取用户的充值序列
+		</desc>
+		<require>
+			userprofile.server_billing
+			userprofile.server_newuser_login_thh
+		</require>
+		
+		<result>
+			userprofile.result_role_recharge_by_other_dt0
+		</result>
+		
+		<changehistory>
+			2017-03-13	鏉庢枌	鍒濆鐗堟湰
+		</changehistory>
+        
+        <getDate desc="edate">
+            <output-param>edate</output-param>
+        </getDate>
+        <getDate desc="sdate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-1</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+		<getDate desc="ldate">
+            <input-param>edate</input-param>
+            <field>day</field>
+            <value>-30</value>
+            <output-param>sdate</output-param>
+        </getDate>
+		
+	    
+		 
+        <hive-ssql desc="浠巑biserver涓殑server_rolebuild鍚屾鍒皍serprofile鐨刣im_rolebuild_dt0">
+            <datasource>impala_stat</datasource>            
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <hive-param>set COMPRESSION_CODEC=SNAPPY</hive-param>
+            <input-param>sdate</input-param>
+			<input-param>sdate</input-param>
+			<input-param>ldate</input-param>
+            <re-trynum>3</re-trynum>            
+            <is-single-result>false</is-single-result>
+			<sql>
+				<![CDATA[
+						insert overwrite table userprofile.result_role_recharge_sequence_dt0 partition(gt=appkey,dt='?')
+						select appkey,userid,roleid,group_concat(date_sequence) as date_sequence 
+						from 
+						(
+							select appkey,userid,roleid,group_concat(info,';') as date_sequence
+							from
+							(
+								select
+								appkey,userid,roleid,concat('(',cast(goods_price as string),',',dt,')') as info
+								from mbiserver.server_billing
+							) a
+							where dt='?'
+							group by appkey,userid,roleid
+							union all
+							select appkey,userid,roleid,date_sequence
+							from 
+							result_role_recharge_sequence_dt0
+						) a
+						group by appkey,userid,roleid
+
+                   ]]>
+            </sql>
+        </hive-ssql> 
+	 
+		
+
+		<hive-ssql desc="鐢熸垚dim_rolebuild_dt0缁熻淇℃伅">
+            <datasource>impala_stat</datasource>
+            <hive-param>set request_pool="root.bi.action"</hive-param>
+            <input-param>sdate</input-param>
+            <re-trynum>3</re-trynum>
+            <is-single-result>false</is-single-result>
+            <sql>
+                <![CDATA[
+                        compute incremental stats userprofile.result_role_recharge_by_other_dt0 partition (dt='?') ;
+                   ]]>
+            </sql>
+        </hive-ssql>
+		
+	 
+        
+    </stat>
+</root>
+        
